@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-03-28
+
+### Added
+
+- Execution callbacks: `on_execute:`, `on_cancel:`, `on_flush:` for lifecycle observability
+- `#metrics` returning call_count, execution_count, suppressed_count
+- `max_wait:` option for debouncer to force execution after maximum wait time
+- `Debounce.keyed(wait:, &block)` for per-key debouncing
+- `#pending_args` for inspecting queued arguments before flush/cancel
+
 ## [0.1.1] - 2026-03-26
 
 ### Added

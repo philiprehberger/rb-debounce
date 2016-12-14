@@ -16,21 +16,33 @@ module Philiprehberger
       # @param wait [Float] delay in seconds
       # @param leading [Boolean] fire on the leading edge
       # @param trailing [Boolean] fire on the trailing edge
+      # @param max_wait [Float, nil] maximum time to wait before forcing execution
+      # @param on_execute [Proc, nil] callback after block executes, receives return value
+      # @param on_cancel [Proc, nil] callback when cancel is invoked
+      # @param on_flush [Proc, nil] callback when flush is invoked
       # @param block [Proc] the block to execute
-      def initialize(wait:, leading: false, trailing: true, &block)
+      def initialize(wait:, leading: false, trailing: true, max_wait: nil, on_execute: nil, on_cancel: nil, on_flush: nil, &block)
         raise ArgumentError, 'block is required' unless block
         raise ArgumentError, 'wait must be positive' unless wait.positive?
         raise ArgumentError, 'at least one of leading or trailing must be true' if !leading && !trailing
+        raise ArgumentError, 'max_wait must be positive' if max_wait && !max_wait.positive?
 
         @wait = wait
         @leading = leading
         @trailing = trailing
+        @max_wait = max_wait
+        @on_execute = on_execute
+        @on_cancel = on_cancel
+        @on_flush = on_flush
         @block = block
         @mutex = Mutex.new
         @pending = false
         @last_args = nil
         @called_leading = false
         @generation = 0
+        @call_count = 0
+        @execution_count = 0
+        @first_call_time = nil
       end
 
       # Invoke the debouncer with optional arguments.
@@ -42,10 +54,13 @@ module Philiprehberger
       # @return [void]
       def call(*args)
         @mutex.synchronize do
+          @call_count += 1
           @last_args = args
           @pending = true
           @generation += 1
           current_gen = @generation
+
+          @first_call_time ||= monotonic_now
 
           # Leading edge: fire immediately on the first call of a new cycle
           if @leading && !@called_leading
@@ -53,10 +68,29 @@ module Philiprehberger
             execute(args)
           end
 
+          # Check if max_wait has been exceeded
+          if @max_wait && @first_call_time && (monotonic_now - @first_call_time) >= @max_wait
+            if @trailing
+              args_to_use = @last_args
+              @pending = false
+              @last_args = nil
+              @called_leading = false
+              @first_call_time = nil
+              execute(args_to_use)
+            end
+            return
+          end
+
           # Start a new trailing timer
           if @trailing || @leading
+            effective_wait = @wait
+            if @max_wait && @first_call_time
+              remaining_max = @max_wait - (monotonic_now - @first_call_time)
+              effective_wait = [effective_wait, remaining_max].min if remaining_max.positive?
+            end
+
             Thread.new do
-              sleep @wait
+              sleep effective_wait
 
               @mutex.synchronize do
                 # Only fire if no new calls happened since this timer started
@@ -66,10 +100,12 @@ module Philiprehberger
                     @pending = false
                     @last_args = nil
                     @called_leading = false
+                    @first_call_time = nil
                     execute(args_to_use)
                   else
                     @pending = false
                     @called_leading = false
+                    @first_call_time = nil
                   end
                 end
               end
@@ -87,7 +123,10 @@ module Philiprehberger
           @pending = false
           @last_args = nil
           @called_leading = false
+          @first_call_time = nil
         end
+
+        invoke_callback(@on_cancel)
       end
 
       # Execute the pending block immediately and cancel the timer.
@@ -105,10 +144,12 @@ module Philiprehberger
             @pending = false
             @last_args = nil
             @called_leading = false
+            @first_call_time = nil
           end
         end
 
         execute(args) if should_execute
+        invoke_callback(@on_flush)
       end
 
       # Whether there is a pending execution.
@@ -118,13 +159,60 @@ module Philiprehberger
         @mutex.synchronize { @pending }
       end
 
+      # Returns the arguments that would be passed to the next execution.
+      #
+      # @return [Array, nil] the pending arguments, or nil if not pending
+      def pending_args
+        @mutex.synchronize do
+          @pending ? @last_args : nil
+        end
+      end
+
+      # Returns metrics about debouncer usage.
+      #
+      # @return [Hash] call_count, execution_count, suppressed_count
+      def metrics
+        @mutex.synchronize do
+          {
+            call_count: @call_count,
+            execution_count: @execution_count,
+            suppressed_count: @call_count - @execution_count
+          }
+        end
+      end
+
+      # Resets all metric counters to zero.
+      #
+      # @return [void]
+      def reset_metrics
+        @mutex.synchronize do
+          @call_count = 0
+          @execution_count = 0
+        end
+      end
+
       private
 
       def execute(args)
-        @block.call(*args)
+        result = @block.call(*args)
+        @execution_count += 1
+        invoke_callback(@on_execute, result)
+        result
       rescue StandardError
         # Swallow errors in the callback to avoid killing timer threads
         nil
+      end
+
+      def invoke_callback(callback, *args)
+        return unless callback
+
+        callback.call(*args)
+      rescue StandardError
+        nil
+      end
+
+      def monotonic_now
+        Process.clock_gettime(Process::CLOCK_MONOTONIC)
       end
     end
   end
