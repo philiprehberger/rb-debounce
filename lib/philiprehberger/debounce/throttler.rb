@@ -38,6 +38,7 @@ module Philiprehberger
         @last_execution_time = nil
         @call_count = 0
         @execution_count = 0
+        @last_result = nil
       end
 
       # Invoke the throttler with optional arguments.
@@ -134,6 +135,13 @@ module Philiprehberger
         end
       end
 
+      # Returns the result of the last block execution.
+      #
+      # @return [Object, nil]
+      def last_result
+        @mutex.synchronize { @last_result }
+      end
+
       # Resets all metric counters to zero.
       #
       # @return [void]
@@ -178,6 +186,7 @@ module Philiprehberger
       def execute(args)
         result = @block.call(*args)
         @execution_count += 1
+        @last_result = result
         invoke_callback(@on_execute, result)
         result
       rescue StandardError

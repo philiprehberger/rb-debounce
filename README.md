@@ -137,6 +137,52 @@ keyed.cancel(:user_1)
 keyed.cancel_all
 ```
 
+### Rate Limiting
+
+```ruby
+# Allow at most 5 requests per 10-second window
+limiter = Philiprehberger::Debounce.rate_limiter(limit: 5, window: 10)
+
+result = limiter.call(:user_1)
+# => { allowed: true, remaining: 4, retry_after: 0 }
+
+# After exceeding the limit:
+# => { allowed: false, remaining: 0, retry_after: 7.3 }
+
+limiter.reset(:user_1) # clear history for a key
+```
+
+### Coalescing
+
+```ruby
+# Collect arguments from multiple calls and flush as a batch
+coalescer = Philiprehberger::Debounce.coalesce(wait: 0.5) do |batched_args|
+  bulk_insert(batched_args)
+end
+
+coalescer.call('row1')
+coalescer.call('row2')
+coalescer.call('row3')
+# After 0.5s of inactivity, block fires with [['row1'], ['row2'], ['row3']]
+
+coalescer.flush          # fire immediately with queued args
+coalescer.cancel         # discard queued args
+coalescer.pending_count  # number of queued calls
+```
+
+### Last Result
+
+```ruby
+debouncer = Philiprehberger::Debounce.debounce(wait: 0.1) { |x| x.upcase }
+debouncer.call('hello')
+sleep 0.15
+debouncer.last_result # => "HELLO"
+
+throttler = Philiprehberger::Debounce.throttle(interval: 0.1) { |x| x * 2 }
+throttler.call(5)
+throttler.last_result # => 10
+```
+
 ### Mixin
 
 ```ruby
@@ -164,6 +210,8 @@ end
 | `.debounce(wait:, leading: false, trailing: true, max_wait: nil, on_execute: nil, on_cancel: nil, on_flush: nil, &block)` | Create a debouncer that delays execution |
 | `.throttle(interval:, leading: true, trailing: false, on_execute: nil, on_cancel: nil, on_flush: nil, &block)` | Create a throttler that limits execution rate |
 | `.keyed(wait:, leading: false, trailing: true, max_wait: nil, on_execute: nil, on_cancel: nil, on_flush: nil, &block)` | Create a keyed debouncer for per-key debouncing |
+| `.rate_limiter(limit:, window:)` | Create a sliding window rate limiter |
+| `.coalesce(wait:, &block)` | Create a coalescer that batches arguments |
 
 ### `Debouncer`
 
@@ -176,6 +224,7 @@ end
 | `#pending_args` | Returns the pending arguments, or nil |
 | `#metrics` | Returns `{ call_count:, execution_count:, suppressed_count: }` |
 | `#reset_metrics` | Resets all metric counters to zero |
+| `#last_result` | Returns the result of the last block execution |
 
 ### `Throttler`
 
@@ -188,6 +237,7 @@ end
 | `#pending_args` | Returns the pending arguments, or nil |
 | `#metrics` | Returns `{ call_count:, execution_count:, suppressed_count: }` |
 | `#reset_metrics` | Resets all metric counters to zero |
+| `#last_result` | Returns the result of the last block execution |
 
 ### `KeyedDebouncer`
 
@@ -197,6 +247,22 @@ end
 | `#cancel(key)` | Cancel pending execution for a specific key |
 | `#cancel_all` | Cancel all pending executions |
 | `#pending_keys` | List keys with pending executions |
+
+### `RateLimiter`
+
+| Method | Description |
+|--------|-------------|
+| `#call(key = :default)` | Check rate limit, returns `{ allowed:, remaining:, retry_after: }` |
+| `#reset(key = :default)` | Clear request history for a key |
+
+### `Coalescer`
+
+| Method | Description |
+|--------|-------------|
+| `#call(*args)` | Queue arguments for the next batch |
+| `#flush` | Fire the block immediately with queued args |
+| `#cancel` | Discard all queued arguments |
+| `#pending_count` | Number of queued calls |
 
 ### `Mixin`
 

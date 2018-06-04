@@ -4,6 +4,8 @@ require_relative 'debounce/version'
 require_relative 'debounce/debouncer'
 require_relative 'debounce/throttler'
 require_relative 'debounce/keyed_debouncer'
+require_relative 'debounce/rate_limiter'
+require_relative 'debounce/coalescer'
 require_relative 'debounce/mixin'
 
 module Philiprehberger
@@ -63,6 +65,24 @@ module Philiprehberger
         wait: wait, leading: leading, trailing: trailing, max_wait: max_wait,
         on_execute: on_execute, on_cancel: on_cancel, on_flush: on_flush, &block
       )
+    end
+
+    # Create a new sliding window rate limiter.
+    #
+    # @param limit [Integer] maximum number of requests per window
+    # @param window [Numeric] window size in seconds
+    # @return [RateLimiter]
+    def self.rate_limiter(limit:, window:)
+      RateLimiter.new(limit: limit, window: window)
+    end
+
+    # Create a new coalescer that batches arguments into a single invocation.
+    #
+    # @param wait [Numeric] delay in seconds before flushing the batch
+    # @yield [Array] receives an array of argument arrays from all queued calls
+    # @return [Coalescer]
+    def self.coalesce(wait:, &block)
+      Coalescer.new(wait: wait, &block)
     end
   end
 end
