@@ -2,12 +2,7 @@
 
 [![Tests](https://github.com/philiprehberger/rb-debounce/actions/workflows/ci.yml/badge.svg)](https://github.com/philiprehberger/rb-debounce/actions/workflows/ci.yml)
 [![Gem Version](https://badge.fury.io/rb/philiprehberger-debounce.svg)](https://rubygems.org/gems/philiprehberger-debounce)
-[![GitHub release](https://img.shields.io/github/v/release/philiprehberger/rb-debounce)](https://github.com/philiprehberger/rb-debounce/releases)
 [![Last updated](https://img.shields.io/github/last-commit/philiprehberger/rb-debounce)](https://github.com/philiprehberger/rb-debounce/commits/main)
-[![License](https://img.shields.io/github/license/philiprehberger/rb-debounce)](LICENSE)
-[![Bug Reports](https://img.shields.io/github/issues/philiprehberger/rb-debounce/bug)](https://github.com/philiprehberger/rb-debounce/issues?q=is%3Aissue+is%3Aopen+label%3Abug)
-[![Feature Requests](https://img.shields.io/github/issues/philiprehberger/rb-debounce/enhancement)](https://github.com/philiprehberger/rb-debounce/issues?q=is%3Aissue+is%3Aopen+label%3Aenhancement)
-[![Sponsor](https://img.shields.io/badge/sponsor-GitHub%20Sponsors-ec6cb9)](https://github.com/sponsors/philiprehberger)
 
 Debounce and throttle decorators for Ruby method calls
 
@@ -281,9 +276,21 @@ bundle exec rubocop
 
 ## Support
 
-- [Bug reports](https://github.com/philiprehberger/rb-debounce/issues)
-- [Feature requests](https://github.com/philiprehberger/rb-debounce/issues)
-- [GitHub Sponsors](https://github.com/sponsors/philiprehberger)
+If you find this project useful:
+
+⭐ [Star the repo](https://github.com/philiprehberger/rb-debounce)
+
+🐛 [Report issues](https://github.com/philiprehberger/rb-debounce/issues?q=is%3Aissue+is%3Aopen+label%3Abug)
+
+💡 [Suggest features](https://github.com/philiprehberger/rb-debounce/issues?q=is%3Aissue+is%3Aopen+label%3Aenhancement)
+
+❤️ [Sponsor development](https://github.com/sponsors/philiprehberger)
+
+🌐 [All Open Source Projects](https://philiprehberger.com/open-source-packages)
+
+💻 [GitHub Profile](https://github.com/philiprehberger)
+
+🔗 [LinkedIn Profile](https://www.linkedin.com/in/philiprehberger)
 
 ## License
 
