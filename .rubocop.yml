@@ -72,7 +72,7 @@ Metrics/CollectionLiteralLength:
   Enabled: false
 
 Layout/LineLength:
-  Max: 140
+  Max: 150
 
 Layout/EndOfLine:
   Enabled: false

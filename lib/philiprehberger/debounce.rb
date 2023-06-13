@@ -25,10 +25,10 @@ module Philiprehberger
     # @param on_flush [Proc, nil] callback when flush is invoked
     # @yield [*args] the block to execute after the debounce period
     # @return [Debouncer]
-    def self.debounce(wait:, leading: false, trailing: true, max_wait: nil, on_execute: nil, on_cancel: nil, on_flush: nil, &block)
+    def self.debounce(wait:, leading: false, trailing: true, max_wait: nil, on_execute: nil, on_cancel: nil, on_flush: nil, on_error: nil, &block)
       Debouncer.new(
         wait: wait, leading: leading, trailing: trailing, max_wait: max_wait,
-        on_execute: on_execute, on_cancel: on_cancel, on_flush: on_flush, &block
+        on_execute: on_execute, on_cancel: on_cancel, on_flush: on_flush, on_error: on_error, &block
       )
     end
 
@@ -42,10 +42,10 @@ module Philiprehberger
     # @param on_flush [Proc, nil] callback when flush is invoked
     # @yield [*args] the block to execute
     # @return [Throttler]
-    def self.throttle(interval:, leading: true, trailing: false, on_execute: nil, on_cancel: nil, on_flush: nil, &block)
+    def self.throttle(interval:, leading: true, trailing: false, on_execute: nil, on_cancel: nil, on_flush: nil, on_error: nil, &block)
       Throttler.new(
         interval: interval, leading: leading, trailing: trailing,
-        on_execute: on_execute, on_cancel: on_cancel, on_flush: on_flush, &block
+        on_execute: on_execute, on_cancel: on_cancel, on_flush: on_flush, on_error: on_error, &block
       )
     end
 
@@ -60,10 +60,10 @@ module Philiprehberger
     # @param on_flush [Proc, nil] callback when flush is invoked
     # @yield [*args] the block to execute after the debounce period
     # @return [KeyedDebouncer]
-    def self.keyed(wait:, leading: false, trailing: true, max_wait: nil, on_execute: nil, on_cancel: nil, on_flush: nil, &block)
+    def self.keyed(wait:, leading: false, trailing: true, max_wait: nil, on_execute: nil, on_cancel: nil, on_flush: nil, on_error: nil, &block)
       KeyedDebouncer.new(
         wait: wait, leading: leading, trailing: trailing, max_wait: max_wait,
-        on_execute: on_execute, on_cancel: on_cancel, on_flush: on_flush, &block
+        on_execute: on_execute, on_cancel: on_cancel, on_flush: on_flush, on_error: on_error, &block
       )
     end
 
@@ -81,8 +81,8 @@ module Philiprehberger
     # @param wait [Numeric] delay in seconds before flushing the batch
     # @yield [Array] receives an array of argument arrays from all queued calls
     # @return [Coalescer]
-    def self.coalesce(wait:, &block)
-      Coalescer.new(wait: wait, &block)
+    def self.coalesce(wait:, on_error: nil, &block)
+      Coalescer.new(wait: wait, on_error: on_error, &block)
     end
   end
 end
