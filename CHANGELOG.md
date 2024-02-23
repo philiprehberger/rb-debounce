@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-04-09
+
+### Added
+- `KeyedDebouncer#flush(key)` to flush a specific key immediately
+- `KeyedDebouncer#flush_all` to flush all pending keyed debouncers
+- `Coalescer#pending_args` to inspect queued argument arrays
+
+### Changed
+- Standardize README code examples to use double-quote strings per guide
+
 ## [0.4.0] - 2026-04-09
 
 ### Added

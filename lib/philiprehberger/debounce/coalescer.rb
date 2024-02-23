@@ -49,6 +49,13 @@ module Philiprehberger
         @mutex.synchronize { @queue.length }
       end
 
+      # Return a snapshot of the queued argument arrays.
+      #
+      # @return [Array<Array>] copy of the current batch queue
+      def pending_args
+        @mutex.synchronize { @queue.dup }
+      end
+
       private
 
       def schedule_flush(gen)

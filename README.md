@@ -15,7 +15,7 @@ Debounce and throttle decorators for Ruby method calls
 Add to your Gemfile:
 
 ```ruby
-gem 'philiprehberger-debounce'
+gem "philiprehberger-debounce"
 ```
 
 Or install directly:
@@ -27,7 +27,7 @@ gem install philiprehberger-debounce
 ## Usage
 
 ```ruby
-require 'philiprehberger/debounce'
+require "philiprehberger/debounce"
 
 # Debounce: delays execution until 0.5s of inactivity
 debouncer = Philiprehberger::Debounce.debounce(wait: 0.5) { |query| search(query) }
@@ -254,6 +254,8 @@ end
 | `#call(key, *args)` | Invoke the debouncer for a specific key |
 | `#cancel(key)` | Cancel pending execution for a specific key |
 | `#cancel_all` | Cancel all pending executions |
+| `#flush(key)` | Flush pending execution for a specific key immediately |
+| `#flush_all` | Flush all pending keyed debouncers immediately |
 | `#pending_keys` | List keys with pending executions |
 
 ### `RateLimiter`
@@ -271,6 +273,7 @@ end
 | `#flush` | Fire the block immediately with queued args |
 | `#cancel` | Discard all queued arguments |
 | `#pending_count` | Number of queued calls |
+| `#pending_args` | Snapshot of queued argument arrays |
 
 ### `Mixin`
 
