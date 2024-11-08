@@ -141,6 +141,7 @@ keyed.call(:user_1, 'ruby')   # debounces independently
 keyed.call(:user_2, 'python') # debounces independently
 
 keyed.pending_keys  # => [:user_1, :user_2]
+keyed.size          # => 2
 keyed.cancel(:user_1)
 keyed.cancel_all
 ```
@@ -257,6 +258,7 @@ end
 | `#flush(key)` | Flush pending execution for a specific key immediately |
 | `#flush_all` | Flush all pending keyed debouncers immediately |
 | `#pending_keys` | List keys with pending executions |
+| `#size` | Number of active keyed debouncers currently held (O(1)) |
 
 ### `RateLimiter`
 

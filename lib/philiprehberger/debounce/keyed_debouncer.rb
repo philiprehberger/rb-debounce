@@ -49,7 +49,8 @@ module Philiprehberger
       # @return [void]
       def cancel(key)
         @mutex.synchronize do
-          @debouncers[key]&.cancel
+          debouncer = @debouncers.delete(key)
+          debouncer&.cancel
         end
       end
 
@@ -59,7 +60,8 @@ module Philiprehberger
       # @return [void]
       def flush(key)
         @mutex.synchronize do
-          @debouncers[key]&.flush
+          debouncer = @debouncers.delete(key)
+          debouncer&.flush
         end
       end
 
@@ -69,6 +71,7 @@ module Philiprehberger
       def flush_all
         @mutex.synchronize do
           @debouncers.each_value(&:flush)
+          @debouncers.clear
         end
       end
 
@@ -78,6 +81,7 @@ module Philiprehberger
       def cancel_all
         @mutex.synchronize do
           @debouncers.each_value(&:cancel)
+          @debouncers.clear
         end
       end
 
@@ -87,6 +91,15 @@ module Philiprehberger
       def pending_keys
         @mutex.synchronize do
           @debouncers.select { |_key, debouncer| debouncer.pending? }.keys
+        end
+      end
+
+      # Number of active keyed debouncers currently held internally.
+      #
+      # @return [Integer] count of tracked keys (O(1))
+      def size
+        @mutex.synchronize do
+          @debouncers.size
         end
       end
 
