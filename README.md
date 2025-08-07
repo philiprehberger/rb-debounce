@@ -146,6 +146,17 @@ keyed.cancel(:user_1)
 keyed.cancel_all
 ```
 
+After the block fires for a key, that key is automatically removed from internal state. The same key can be reused in subsequent calls.
+
+```ruby
+# Limit the number of tracked keys (oldest key evicted when limit is reached)
+keyed = Philiprehberger::Debounce.keyed(wait: 0.5, max_keys: 100) { |query| search(query) }
+
+keyed.call(:user_1, 'ruby')
+keyed.call(:user_2, 'python')
+# If a 101st distinct key arrives, :user_1 is cancelled and removed first
+```
+
 ### Rate Limiting
 
 ```ruby
@@ -218,7 +229,7 @@ end
 |--------|-------------|
 | `.debounce(wait:, leading: false, trailing: true, max_wait: nil, on_execute: nil, on_cancel: nil, on_flush: nil, on_error: nil, &block)` | Create a debouncer that delays execution |
 | `.throttle(interval:, leading: true, trailing: false, on_execute: nil, on_cancel: nil, on_flush: nil, on_error: nil, &block)` | Create a throttler that limits execution rate |
-| `.keyed(wait:, leading: false, trailing: true, max_wait: nil, on_execute: nil, on_cancel: nil, on_flush: nil, on_error: nil, &block)` | Create a keyed debouncer for per-key debouncing |
+| `.keyed(wait:, leading: false, trailing: true, max_wait: nil, max_keys: nil, on_execute: nil, on_cancel: nil, on_flush: nil, on_error: nil, &block)` | Create a keyed debouncer for per-key debouncing |
 | `.rate_limiter(limit:, window:)` | Create a sliding window rate limiter |
 | `.coalesce(wait:, on_error: nil, &block)` | Create a coalescer that batches arguments |
 
@@ -259,6 +270,8 @@ end
 | `#flush_all` | Flush all pending keyed debouncers immediately |
 | `#pending_keys` | List keys with pending executions |
 | `#size` | Number of active keyed debouncers currently held (O(1)) |
+
+Completed keys are automatically removed after execution. Use `max_keys:` to cap the number of tracked keys; the oldest key is evicted when the limit is exceeded.
 
 ### `RateLimiter`
 

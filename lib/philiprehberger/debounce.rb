@@ -55,14 +55,17 @@ module Philiprehberger
     # @param leading [Boolean] fire on the leading edge (default: false)
     # @param trailing [Boolean] fire on the trailing edge (default: true)
     # @param max_wait [Float, nil] maximum time to wait before forcing execution
+    # @param max_keys [Integer, nil] maximum number of keys to hold; oldest key is evicted when exceeded
     # @param on_execute [Proc, nil] callback after block executes, receives return value
     # @param on_cancel [Proc, nil] callback when cancel is invoked
     # @param on_flush [Proc, nil] callback when flush is invoked
     # @yield [*args] the block to execute after the debounce period
     # @return [KeyedDebouncer]
-    def self.keyed(wait:, leading: false, trailing: true, max_wait: nil, on_execute: nil, on_cancel: nil, on_flush: nil, on_error: nil, &block)
+    def self.keyed(wait:, leading: false, trailing: true, max_wait: nil, # rubocop:disable Metrics/ParameterLists
+                   max_keys: nil, on_execute: nil, on_cancel: nil, on_flush: nil,
+                   on_error: nil, &block)
       KeyedDebouncer.new(
-        wait: wait, leading: leading, trailing: trailing, max_wait: max_wait,
+        wait: wait, leading: leading, trailing: trailing, max_wait: max_wait, max_keys: max_keys,
         on_execute: on_execute, on_cancel: on_cancel, on_flush: on_flush, on_error: on_error, &block
       )
     end
