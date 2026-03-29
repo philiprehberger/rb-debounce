@@ -14,8 +14,11 @@ module Philiprehberger
       # @param interval [Float] minimum time between executions in seconds
       # @param leading [Boolean] fire on the leading edge
       # @param trailing [Boolean] fire on the trailing edge
+      # @param on_execute [Proc, nil] callback after block executes, receives return value
+      # @param on_cancel [Proc, nil] callback when cancel is invoked
+      # @param on_flush [Proc, nil] callback when flush is invoked
       # @param block [Proc] the block to execute
-      def initialize(interval:, leading: true, trailing: false, &block)
+      def initialize(interval:, leading: true, trailing: false, on_execute: nil, on_cancel: nil, on_flush: nil, &block)
         raise ArgumentError, 'block is required' unless block
         raise ArgumentError, 'interval must be positive' unless interval.positive?
         raise ArgumentError, 'at least one of leading or trailing must be true' if !leading && !trailing
@@ -23,6 +26,9 @@ module Philiprehberger
         @interval = interval
         @leading = leading
         @trailing = trailing
+        @on_execute = on_execute
+        @on_cancel = on_cancel
+        @on_flush = on_flush
         @block = block
         @mutex = Mutex.new
         @condition = ConditionVariable.new
@@ -30,6 +36,8 @@ module Philiprehberger
         @pending = false
         @trailing_scheduled = false
         @last_execution_time = nil
+        @call_count = 0
+        @execution_count = 0
       end
 
       # Invoke the throttler with optional arguments.
@@ -42,6 +50,7 @@ module Philiprehberger
       # @return [void]
       def call(*args)
         @mutex.synchronize do
+          @call_count += 1
           now = monotonic_now
           @last_args = args
           @pending = true
@@ -70,6 +79,8 @@ module Philiprehberger
           @last_args = nil
           @condition.signal
         end
+
+        invoke_callback(@on_cancel)
       end
 
       # Execute the pending block immediately and cancel the trailing timer.
@@ -91,6 +102,7 @@ module Philiprehberger
         end
 
         execute(args) if should_execute
+        invoke_callback(@on_flush)
       end
 
       # Whether there is a pending trailing execution.
@@ -98,6 +110,38 @@ module Philiprehberger
       # @return [Boolean]
       def pending?
         @mutex.synchronize { @pending }
+      end
+
+      # Returns the arguments that would be passed to the next execution.
+      #
+      # @return [Array, nil] the pending arguments, or nil if not pending
+      def pending_args
+        @mutex.synchronize do
+          @pending ? @last_args : nil
+        end
+      end
+
+      # Returns metrics about throttler usage.
+      #
+      # @return [Hash] call_count, execution_count, suppressed_count
+      def metrics
+        @mutex.synchronize do
+          {
+            call_count: @call_count,
+            execution_count: @execution_count,
+            suppressed_count: @call_count - @execution_count
+          }
+        end
+      end
+
+      # Resets all metric counters to zero.
+      #
+      # @return [void]
+      def reset_metrics
+        @mutex.synchronize do
+          @call_count = 0
+          @execution_count = 0
+        end
       end
 
       private
@@ -132,9 +176,20 @@ module Philiprehberger
       end
 
       def execute(args)
-        @block.call(*args)
+        result = @block.call(*args)
+        @execution_count += 1
+        invoke_callback(@on_execute, result)
+        result
       rescue StandardError
         # Swallow errors in the callback to avoid killing timer threads
+        nil
+      end
+
+      def invoke_callback(callback, *args)
+        return unless callback
+
+        callback.call(*args)
+      rescue StandardError
         nil
       end
 
