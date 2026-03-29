@@ -164,8 +164,8 @@ RSpec.describe Philiprehberger::Debounce::Debouncer do
       callback_values = []
       debouncer = Philiprehberger::Debounce.debounce(
         wait: 0.1,
-        on_execute: ->(result) { callback_values << result }
-      ) { |v| v.upcase }
+        on_execute: ->(result) { callback_values << result }, &:upcase
+      )
 
       debouncer.call('hello')
       sleep 0.15
@@ -434,8 +434,8 @@ RSpec.describe Philiprehberger::Debounce::Throttler do
       callback_values = []
       throttler = Philiprehberger::Debounce.throttle(
         interval: 0.1,
-        on_execute: ->(result) { callback_values << result }
-      ) { |v| v.upcase }
+        on_execute: ->(result) { callback_values << result }, &:upcase
+      )
 
       throttler.call('hello')
       expect(callback_values).to eq(['HELLO'])
