@@ -27,6 +27,20 @@ RSpec.describe Philiprehberger::Debounce do
       expect(k).to be_a(Philiprehberger::Debounce::KeyedDebouncer)
     end
   end
+
+  describe '.rate_limiter' do
+    it 'returns a RateLimiter' do
+      rl = described_class.rate_limiter(limit: 5, window: 1.0)
+      expect(rl).to be_a(Philiprehberger::Debounce::RateLimiter)
+    end
+  end
+
+  describe '.coalesce' do
+    it 'returns a Coalescer' do
+      c = described_class.coalesce(wait: 0.1) { nil }
+      expect(c).to be_a(Philiprehberger::Debounce::Coalescer)
+    end
+  end
 end
 
 RSpec.describe Philiprehberger::Debounce::Debouncer do
@@ -339,6 +353,192 @@ RSpec.describe Philiprehberger::Debounce::Debouncer do
       debouncer.call('test')
       debouncer.cancel
       expect(debouncer.pending_args).to be_nil
+    end
+  end
+end
+
+RSpec.describe Philiprehberger::Debounce::Debouncer do
+  describe '#last_result' do
+    it 'stores the last execution result' do
+      debouncer = Philiprehberger::Debounce.debounce(wait: 0.1, &:upcase)
+
+      expect(debouncer.last_result).to be_nil
+
+      debouncer.call('hello')
+      sleep 0.15
+      expect(debouncer.last_result).to eq('HELLO')
+
+      debouncer.call('world')
+      sleep 0.15
+      expect(debouncer.last_result).to eq('WORLD')
+    end
+  end
+end
+
+RSpec.describe Philiprehberger::Debounce::Throttler do
+  describe '#last_result' do
+    it 'stores the last execution result' do
+      throttler = Philiprehberger::Debounce.throttle(interval: 0.1) { |v| v * 2 }
+
+      expect(throttler.last_result).to be_nil
+
+      throttler.call(5)
+      expect(throttler.last_result).to eq(10)
+
+      sleep 0.15
+      throttler.call(7)
+      expect(throttler.last_result).to eq(14)
+    end
+  end
+end
+
+RSpec.describe Philiprehberger::Debounce::RateLimiter do
+  describe '#call' do
+    it 'allows requests within limit' do
+      limiter = Philiprehberger::Debounce.rate_limiter(limit: 3, window: 1.0)
+
+      result = limiter.call
+      expect(result[:allowed]).to be true
+    end
+
+    it 'blocks requests over limit' do
+      limiter = Philiprehberger::Debounce.rate_limiter(limit: 2, window: 1.0)
+
+      limiter.call
+      limiter.call
+      result = limiter.call
+      expect(result[:allowed]).to be false
+    end
+
+    it 'returns remaining count' do
+      limiter = Philiprehberger::Debounce.rate_limiter(limit: 3, window: 1.0)
+
+      result1 = limiter.call
+      expect(result1[:remaining]).to eq(2)
+
+      result2 = limiter.call
+      expect(result2[:remaining]).to eq(1)
+
+      result3 = limiter.call
+      expect(result3[:remaining]).to eq(0)
+    end
+
+    it 'returns retry_after when blocked' do
+      limiter = Philiprehberger::Debounce.rate_limiter(limit: 1, window: 1.0)
+
+      limiter.call
+      result = limiter.call
+      expect(result[:allowed]).to be false
+      expect(result[:retry_after]).to be > 0
+    end
+
+    it 'allows new requests after window expires' do
+      limiter = Philiprehberger::Debounce.rate_limiter(limit: 1, window: 0.1)
+
+      limiter.call
+      result_blocked = limiter.call
+      expect(result_blocked[:allowed]).to be false
+
+      sleep 0.15
+      result_allowed = limiter.call
+      expect(result_allowed[:allowed]).to be true
+    end
+  end
+
+  describe '#reset' do
+    it 'clears history for a key' do
+      limiter = Philiprehberger::Debounce.rate_limiter(limit: 1, window: 1.0)
+
+      limiter.call(:api)
+      result_blocked = limiter.call(:api)
+      expect(result_blocked[:allowed]).to be false
+
+      limiter.reset(:api)
+      result_after_reset = limiter.call(:api)
+      expect(result_after_reset[:allowed]).to be true
+    end
+  end
+
+  describe 'validation' do
+    it 'raises for non-positive limit' do
+      expect { Philiprehberger::Debounce.rate_limiter(limit: 0, window: 1.0) }.to raise_error(ArgumentError, /Limit/)
+    end
+
+    it 'raises for non-integer limit' do
+      expect { Philiprehberger::Debounce.rate_limiter(limit: 1.5, window: 1.0) }.to raise_error(ArgumentError, /Limit/)
+    end
+
+    it 'raises for non-positive window' do
+      expect { Philiprehberger::Debounce.rate_limiter(limit: 1, window: 0) }.to raise_error(ArgumentError, /Window/)
+    end
+  end
+end
+
+RSpec.describe Philiprehberger::Debounce::Coalescer do
+  describe '#call' do
+    it 'collects args and fires once after wait' do
+      results = nil
+      coalescer = Philiprehberger::Debounce.coalesce(wait: 0.1) { |items| results = items }
+
+      coalescer.call('a')
+      coalescer.call('b')
+      coalescer.call('c')
+
+      expect(results).to be_nil
+      sleep 0.15
+      expect(results).to eq([['a'], ['b'], ['c']])
+    end
+  end
+
+  describe '#flush' do
+    it 'fires immediately with queued args' do
+      results = nil
+      coalescer = Philiprehberger::Debounce.coalesce(wait: 1.0) { |items| results = items }
+
+      coalescer.call('x')
+      coalescer.call('y')
+      coalescer.flush
+
+      expect(results).to eq([['x'], ['y']])
+    end
+  end
+
+  describe '#cancel' do
+    it 'clears the queue' do
+      results = nil
+      coalescer = Philiprehberger::Debounce.coalesce(wait: 0.1) { |items| results = items }
+
+      coalescer.call('a')
+      coalescer.call('b')
+      coalescer.cancel
+
+      sleep 0.15
+      expect(results).to be_nil
+    end
+  end
+
+  describe '#pending_count' do
+    it 'reflects queue size' do
+      coalescer = Philiprehberger::Debounce.coalesce(wait: 1.0) { |_| nil }
+
+      expect(coalescer.pending_count).to eq(0)
+
+      coalescer.call('a')
+      coalescer.call('b')
+      expect(coalescer.pending_count).to eq(2)
+
+      coalescer.cancel
+      expect(coalescer.pending_count).to eq(0)
+    end
+  end
+
+  describe 'validation' do
+    it 'raises without a block' do
+      expect { Philiprehberger::Debounce::Coalescer.new(wait: 0.1) }.to raise_error(ArgumentError, /Block/)
+    end
+
+    it 'raises for non-positive wait' do
+      expect { Philiprehberger::Debounce.coalesce(wait: 0) { nil } }.to raise_error(ArgumentError, /Wait/)
     end
   end
 end

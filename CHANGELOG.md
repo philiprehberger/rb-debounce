@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-03-31
+
+### Added
+
+- `Debounce.rate_limiter(limit:, window:)` for sliding window rate limiting
+- `Debounce.coalesce(wait:, &block)` for batching arguments into single invocation
+- `Debouncer#last_result` and `Throttler#last_result` for retrieving last execution return value
+
 ## [0.2.0] - 2026-03-28
 
 ### Added
