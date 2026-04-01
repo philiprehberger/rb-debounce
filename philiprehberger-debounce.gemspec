@@ -9,7 +9,7 @@ Gem::Specification.new do |spec|
   spec.email = ['me@philiprehberger.com']
   spec.summary = 'Debounce and throttle decorators for Ruby method calls'
   spec.description = 'Debounce delays execution until a quiet period elapses. Throttle limits execution ' \
-                       'frequency. Both are thread-safe with leading/trailing edge options and cancel/flush control.'
+                     'frequency. Both are thread-safe with leading/trailing edge options and cancel/flush control.'
   spec.homepage = 'https://philiprehberger.com/open-source-packages/ruby/philiprehberger-debounce'
   spec.license = 'MIT'
   spec.required_ruby_version = '>= 3.1.0'
