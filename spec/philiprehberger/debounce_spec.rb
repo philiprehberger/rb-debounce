@@ -41,6 +41,48 @@ RSpec.describe Philiprehberger::Debounce do
       expect(c).to be_a(Philiprehberger::Debounce::Coalescer)
     end
   end
+
+  describe 'on_error callback' do
+    it 'reports debouncer block errors via on_error' do
+      errors = []
+      debouncer = described_class.debounce(wait: 0.05, on_error: ->(e) { errors << e }) { raise 'boom' }
+      debouncer.call
+      sleep 0.15
+      expect(errors.size).to eq(1)
+      expect(errors.first.message).to eq('boom')
+    end
+
+    it 'reports throttler block errors via on_error' do
+      errors = []
+      throttler = described_class.throttle(interval: 0.05, on_error: ->(e) { errors << e }) { raise 'nope' }
+      throttler.call
+      expect(errors.map(&:message)).to eq(['nope'])
+    end
+
+    it 'reports coalescer block errors via on_error' do
+      errors = []
+      coalescer = described_class.coalesce(wait: 0.05, on_error: ->(e) { errors << e }) { raise 'bad' }
+      coalescer.call('x')
+      sleep 0.15
+      expect(errors.map(&:message)).to eq(['bad'])
+    end
+
+    it 'swallows errors raised inside on_error itself' do
+      debouncer = described_class.debounce(wait: 0.05, on_error: ->(_) { raise 'reporter exploded' }) { raise 'boom' }
+      expect do
+        debouncer.call
+        sleep 0.15
+      end.not_to raise_error
+    end
+
+    it 'does not leak errors when on_error is not provided' do
+      debouncer = described_class.debounce(wait: 0.05) { raise 'boom' }
+      expect do
+        debouncer.call
+        sleep 0.15
+      end.not_to raise_error
+    end
+  end
 end
 
 RSpec.describe Philiprehberger::Debounce::Debouncer do

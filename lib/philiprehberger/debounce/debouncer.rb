@@ -21,7 +21,7 @@ module Philiprehberger
       # @param on_cancel [Proc, nil] callback when cancel is invoked
       # @param on_flush [Proc, nil] callback when flush is invoked
       # @param block [Proc] the block to execute
-      def initialize(wait:, leading: false, trailing: true, max_wait: nil, on_execute: nil, on_cancel: nil, on_flush: nil, &block)
+      def initialize(wait:, leading: false, trailing: true, max_wait: nil, on_execute: nil, on_cancel: nil, on_flush: nil, on_error: nil, &block)
         raise ArgumentError, 'block is required' unless block
         raise ArgumentError, 'wait must be positive' unless wait.positive?
         raise ArgumentError, 'at least one of leading or trailing must be true' if !leading && !trailing
@@ -34,6 +34,7 @@ module Philiprehberger
         @on_execute = on_execute
         @on_cancel = on_cancel
         @on_flush = on_flush
+        @on_error = on_error
         @block = block
         @mutex = Mutex.new
         @pending = false
@@ -207,8 +208,9 @@ module Philiprehberger
         @last_result = result
         invoke_callback(@on_execute, result)
         result
-      rescue StandardError
-        # Swallow errors in the callback to avoid killing timer threads
+      rescue StandardError => e
+        # Swallow errors to avoid killing timer threads; surface via on_error if set
+        invoke_callback(@on_error, e)
         nil
       end
 

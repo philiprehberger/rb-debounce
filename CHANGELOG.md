@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-04-09
+
+### Added
+- `on_error:` callback for `Debouncer`, `Throttler`, `KeyedDebouncer`, and `Coalescer` to surface block exceptions without killing timer threads
+
 ## [0.3.1] - 2026-03-31
 
 ### Changed

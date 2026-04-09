@@ -93,6 +93,19 @@ debouncer = Philiprehberger::Debounce.debounce(
 ) { |query| search(query) }
 ```
 
+### Error Handling
+
+```ruby
+# Block exceptions are swallowed by default to keep timer threads alive.
+# Provide on_error: to observe them.
+debouncer = Philiprehberger::Debounce.debounce(
+  wait: 0.5,
+  on_error: ->(error) { logger.error("debounced job failed: #{error.message}") }
+) { |query| search(query) }
+```
+
+`on_error:` is supported by `.debounce`, `.throttle`, `.keyed`, and `.coalesce`.
+
 ### Metrics
 
 ```ruby
@@ -202,11 +215,11 @@ end
 
 | Method | Description |
 |--------|-------------|
-| `.debounce(wait:, leading: false, trailing: true, max_wait: nil, on_execute: nil, on_cancel: nil, on_flush: nil, &block)` | Create a debouncer that delays execution |
-| `.throttle(interval:, leading: true, trailing: false, on_execute: nil, on_cancel: nil, on_flush: nil, &block)` | Create a throttler that limits execution rate |
-| `.keyed(wait:, leading: false, trailing: true, max_wait: nil, on_execute: nil, on_cancel: nil, on_flush: nil, &block)` | Create a keyed debouncer for per-key debouncing |
+| `.debounce(wait:, leading: false, trailing: true, max_wait: nil, on_execute: nil, on_cancel: nil, on_flush: nil, on_error: nil, &block)` | Create a debouncer that delays execution |
+| `.throttle(interval:, leading: true, trailing: false, on_execute: nil, on_cancel: nil, on_flush: nil, on_error: nil, &block)` | Create a throttler that limits execution rate |
+| `.keyed(wait:, leading: false, trailing: true, max_wait: nil, on_execute: nil, on_cancel: nil, on_flush: nil, on_error: nil, &block)` | Create a keyed debouncer for per-key debouncing |
 | `.rate_limiter(limit:, window:)` | Create a sliding window rate limiter |
-| `.coalesce(wait:, &block)` | Create a coalescer that batches arguments |
+| `.coalesce(wait:, on_error: nil, &block)` | Create a coalescer that batches arguments |
 
 ### `Debouncer`
 
