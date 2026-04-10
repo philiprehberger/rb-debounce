@@ -930,3 +930,66 @@ RSpec.describe Philiprehberger::Debounce::Mixin do
     end
   end
 end
+
+RSpec.describe Philiprehberger::Debounce::KeyedDebouncer, '#flush and #flush_all' do
+  it 'flushes a specific key immediately' do
+    results = []
+    keyed = Philiprehberger::Debounce.keyed(wait: 5.0) { |v| results << v }
+    keyed.call(:a, 'alpha')
+    keyed.flush(:a)
+    sleep 0.05
+    expect(results).to eq(['alpha'])
+  end
+
+  it 'does nothing when flushing a key with no debouncer' do
+    keyed = Philiprehberger::Debounce.keyed(wait: 5.0) { |v| v }
+    expect { keyed.flush(:missing) }.not_to raise_error
+  end
+
+  it 'flushes all pending keys' do
+    results = []
+    keyed = Philiprehberger::Debounce.keyed(wait: 5.0) { |v| results << v }
+    keyed.call(:a, 'alpha')
+    keyed.call(:b, 'beta')
+    keyed.flush_all
+    sleep 0.05
+    expect(results).to contain_exactly('alpha', 'beta')
+  end
+
+  it 'clears pending state after flush' do
+    keyed = Philiprehberger::Debounce.keyed(wait: 5.0) { |v| v }
+    keyed.call(:a, 'x')
+    keyed.flush(:a)
+    sleep 0.05
+    expect(keyed.pending_keys).to be_empty
+  end
+end
+
+RSpec.describe Philiprehberger::Debounce::Coalescer, '#pending_args' do
+  it 'returns empty array when nothing is queued' do
+    coalescer = Philiprehberger::Debounce.coalesce(wait: 5.0) { |batch| batch }
+    expect(coalescer.pending_args).to eq([])
+  end
+
+  it 'returns a snapshot of queued argument arrays' do
+    coalescer = Philiprehberger::Debounce.coalesce(wait: 5.0) { |batch| batch }
+    coalescer.call('a', 1)
+    coalescer.call('b', 2)
+    expect(coalescer.pending_args).to eq([['a', 1], ['b', 2]])
+  end
+
+  it 'returns empty after flush' do
+    coalescer = Philiprehberger::Debounce.coalesce(wait: 5.0) { |batch| batch }
+    coalescer.call('a')
+    coalescer.flush
+    expect(coalescer.pending_args).to eq([])
+  end
+
+  it 'returns a copy that does not affect internal state' do
+    coalescer = Philiprehberger::Debounce.coalesce(wait: 5.0) { |batch| batch }
+    coalescer.call('a')
+    snapshot = coalescer.pending_args
+    snapshot.clear
+    expect(coalescer.pending_args).to eq([['a']])
+  end
+end

@@ -53,6 +53,25 @@ module Philiprehberger
         end
       end
 
+      # Flush the pending execution for a specific key immediately.
+      #
+      # @param key [Object] the key to flush
+      # @return [void]
+      def flush(key)
+        @mutex.synchronize do
+          @debouncers[key]&.flush
+        end
+      end
+
+      # Flush all pending keyed debouncers immediately.
+      #
+      # @return [void]
+      def flush_all
+        @mutex.synchronize do
+          @debouncers.each_value(&:flush)
+        end
+      end
+
       # Cancel all pending executions.
       #
       # @return [void]
