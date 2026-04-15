@@ -965,6 +965,60 @@ RSpec.describe Philiprehberger::Debounce::KeyedDebouncer, '#flush and #flush_all
   end
 end
 
+RSpec.describe Philiprehberger::Debounce::KeyedDebouncer, '#size' do
+  it 'returns 0 when empty' do
+    keyed = Philiprehberger::Debounce.keyed(wait: 1.0) { nil }
+    expect(keyed.size).to eq(0)
+  end
+
+  it 'returns 1 after a single call' do
+    keyed = Philiprehberger::Debounce.keyed(wait: 1.0) { nil }
+    keyed.call(:a)
+    expect(keyed.size).to eq(1)
+  end
+
+  it 'returns N after calls with N distinct keys' do
+    keyed = Philiprehberger::Debounce.keyed(wait: 1.0) { nil }
+    keyed.call(:a)
+    keyed.call(:b)
+    keyed.call(:c)
+    expect(keyed.size).to eq(3)
+  end
+
+  it 'does not grow when the same key is reused' do
+    keyed = Philiprehberger::Debounce.keyed(wait: 1.0) { nil }
+    keyed.call(:a)
+    keyed.call(:a)
+    keyed.call(:a)
+    expect(keyed.size).to eq(1)
+  end
+
+  it 'decreases after cancel(key)' do
+    keyed = Philiprehberger::Debounce.keyed(wait: 1.0) { nil }
+    keyed.call(:a)
+    keyed.call(:b)
+    expect(keyed.size).to eq(2)
+    keyed.cancel(:a)
+    expect(keyed.size).to eq(1)
+  end
+
+  it 'returns 0 after cancel_all' do
+    keyed = Philiprehberger::Debounce.keyed(wait: 1.0) { nil }
+    keyed.call(:a)
+    keyed.call(:b)
+    keyed.cancel_all
+    expect(keyed.size).to eq(0)
+  end
+
+  it 'returns 0 after flush_all' do
+    keyed = Philiprehberger::Debounce.keyed(wait: 5.0) { |v| v }
+    keyed.call(:a, 'alpha')
+    keyed.call(:b, 'beta')
+    keyed.flush_all
+    expect(keyed.size).to eq(0)
+  end
+end
+
 RSpec.describe Philiprehberger::Debounce::Coalescer, '#pending_args' do
   it 'returns empty array when nothing is queued' do
     coalescer = Philiprehberger::Debounce.coalesce(wait: 5.0) { |batch| batch }
