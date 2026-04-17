@@ -1019,6 +1019,115 @@ RSpec.describe Philiprehberger::Debounce::KeyedDebouncer, '#size' do
   end
 end
 
+RSpec.describe Philiprehberger::Debounce::KeyedDebouncer, 'auto-eviction after completion' do
+  it 'removes the key from internal state after the block fires' do
+    keyed = Philiprehberger::Debounce.keyed(wait: 0.05) { |v| v }
+    keyed.call(:a, 'hello')
+    expect(keyed.size).to eq(1)
+    sleep 0.15
+    expect(keyed.size).to eq(0)
+  end
+
+  it 'allows the same key to be reused after auto-eviction' do
+    results = []
+    keyed = Philiprehberger::Debounce.keyed(wait: 0.05) { |v| results << v }
+    keyed.call(:a, 'first')
+    sleep 0.15
+    expect(results).to eq(['first'])
+    expect(keyed.size).to eq(0)
+
+    keyed.call(:a, 'second')
+    sleep 0.15
+    expect(results).to eq(%w[first second])
+  end
+
+  it 'still calls the user on_execute callback after auto-eviction' do
+    executed = []
+    keyed = Philiprehberger::Debounce.keyed(
+      wait: 0.05,
+      on_execute: ->(result) { executed << result }
+    ) { |v| v.upcase.to_s }
+    keyed.call(:a, 'hi')
+    sleep 0.15
+    expect(executed).to eq(['HI'])
+    expect(keyed.size).to eq(0)
+  end
+
+  it 'does not evict keys that are still pending' do
+    keyed = Philiprehberger::Debounce.keyed(wait: 1.0) { |v| v }
+    keyed.call(:a)
+    keyed.call(:b)
+    sleep 0.05
+    expect(keyed.size).to eq(2)
+    keyed.cancel_all
+  end
+end
+
+RSpec.describe Philiprehberger::Debounce::KeyedDebouncer, 'max_keys:' do
+  it 'evicts the oldest key when adding a new key would exceed max_keys' do
+    keyed = Philiprehberger::Debounce.keyed(wait: 1.0, max_keys: 2) { |v| v }
+    keyed.call(:a)
+    keyed.call(:b)
+    expect(keyed.size).to eq(2)
+
+    keyed.call(:c)
+    expect(keyed.size).to eq(2)
+    expect(keyed.pending_keys).not_to include(:a)
+    expect(keyed.pending_keys).to include(:b, :c)
+    keyed.cancel_all
+  end
+
+  it 'evicts the second-oldest key after the first has been evicted' do
+    keyed = Philiprehberger::Debounce.keyed(wait: 1.0, max_keys: 2) { |v| v }
+    keyed.call(:a)
+    keyed.call(:b)
+    keyed.call(:c)
+    expect(keyed.pending_keys).not_to include(:a)
+
+    keyed.call(:d)
+    expect(keyed.pending_keys).not_to include(:b)
+    expect(keyed.pending_keys).to include(:c, :d)
+    keyed.cancel_all
+  end
+
+  it 'does not evict when under the limit' do
+    keyed = Philiprehberger::Debounce.keyed(wait: 1.0, max_keys: 3) { |v| v }
+    keyed.call(:a)
+    keyed.call(:b)
+    expect(keyed.size).to eq(2)
+    expect(keyed.pending_keys).to include(:a, :b)
+    keyed.cancel_all
+  end
+
+  it 'does not evict when the same key is reused' do
+    keyed = Philiprehberger::Debounce.keyed(wait: 1.0, max_keys: 1) { |v| v }
+    keyed.call(:a)
+    keyed.call(:a)
+    keyed.call(:a)
+    expect(keyed.size).to eq(1)
+    expect(keyed.pending_keys).to include(:a)
+    keyed.cancel_all
+  end
+
+  it 'raises ArgumentError for non-positive max_keys' do
+    expect do
+      Philiprehberger::Debounce.keyed(wait: 0.1, max_keys: 0) { nil }
+    end.to raise_error(ArgumentError, /max_keys/)
+  end
+
+  it 'raises ArgumentError for non-integer max_keys' do
+    expect do
+      Philiprehberger::Debounce.keyed(wait: 0.1, max_keys: 2.5) { nil }
+    end.to raise_error(ArgumentError, /max_keys/)
+  end
+
+  it 'accepts nil max_keys for unlimited keys' do
+    keyed = Philiprehberger::Debounce.keyed(wait: 1.0, max_keys: nil) { |v| v }
+    expect(keyed).to be_a(Philiprehberger::Debounce::KeyedDebouncer)
+    keyed.cancel_all
+  end
+end
+
 RSpec.describe Philiprehberger::Debounce::Coalescer, '#pending_args' do
   it 'returns empty array when nothing is queued' do
     coalescer = Philiprehberger::Debounce.coalesce(wait: 5.0) { |batch| batch }

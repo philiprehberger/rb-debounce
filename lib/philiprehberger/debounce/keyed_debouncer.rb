@@ -14,17 +14,22 @@ module Philiprehberger
       # @param leading [Boolean] fire on the leading edge
       # @param trailing [Boolean] fire on the trailing edge
       # @param max_wait [Float, nil] maximum time to wait before forcing execution
+      # @param max_keys [Integer, nil] maximum number of keys to hold; oldest key is evicted when exceeded
       # @param on_execute [Proc, nil] callback after block executes
       # @param on_cancel [Proc, nil] callback when cancel is invoked
       # @param on_flush [Proc, nil] callback when flush is invoked
       # @param block [Proc] the block to execute
-      def initialize(wait:, leading: false, trailing: true, max_wait: nil, on_execute: nil, on_cancel: nil, on_flush: nil, on_error: nil, &block)
+      def initialize(wait:, leading: false, trailing: true, max_wait: nil, # rubocop:disable Metrics/ParameterLists
+                     max_keys: nil, on_execute: nil, on_cancel: nil, on_flush: nil,
+                     on_error: nil, &block)
         raise ArgumentError, 'block is required' unless block
+        raise ArgumentError, 'max_keys must be a positive integer' if max_keys && (!max_keys.is_a?(Integer) || max_keys < 1)
 
         @wait = wait
         @leading = leading
         @trailing = trailing
         @max_wait = max_wait
+        @max_keys = max_keys
         @on_execute = on_execute
         @on_cancel = on_cancel
         @on_flush = on_flush
@@ -48,10 +53,8 @@ module Philiprehberger
       # @param key [Object] the key to cancel
       # @return [void]
       def cancel(key)
-        @mutex.synchronize do
-          debouncer = @debouncers.delete(key)
-          debouncer&.cancel
-        end
+        debouncer = @mutex.synchronize { @debouncers.delete(key) }
+        debouncer&.cancel
       end
 
       # Flush the pending execution for a specific key immediately.
@@ -59,30 +62,32 @@ module Philiprehberger
       # @param key [Object] the key to flush
       # @return [void]
       def flush(key)
-        @mutex.synchronize do
-          debouncer = @debouncers.delete(key)
-          debouncer&.flush
-        end
+        debouncer = @mutex.synchronize { @debouncers.delete(key) }
+        debouncer&.flush
       end
 
       # Flush all pending keyed debouncers immediately.
       #
       # @return [void]
       def flush_all
-        @mutex.synchronize do
-          @debouncers.each_value(&:flush)
+        debouncers = @mutex.synchronize do
+          current = @debouncers.values
           @debouncers.clear
+          current
         end
+        debouncers.each(&:flush)
       end
 
       # Cancel all pending executions.
       #
       # @return [void]
       def cancel_all
-        @mutex.synchronize do
-          @debouncers.each_value(&:cancel)
+        debouncers = @mutex.synchronize do
+          current = @debouncers.values
           @debouncers.clear
+          current
         end
+        debouncers.each(&:cancel)
       end
 
       # List keys that have pending executions.
@@ -106,19 +111,34 @@ module Philiprehberger
       private
 
       def debouncer_for(key)
-        @mutex.synchronize do
-          @debouncers[key] ||= Debouncer.new(
-            wait: @wait,
-            leading: @leading,
-            trailing: @trailing,
-            max_wait: @max_wait,
-            on_execute: @on_execute,
-            on_cancel: @on_cancel,
-            on_flush: @on_flush,
-            on_error: @on_error,
-            &@block
-          )
+        evicted = nil
+        debouncer = @mutex.synchronize do
+          unless @debouncers.key?(key)
+            if @max_keys && @debouncers.size >= @max_keys
+              oldest_key = @debouncers.keys.first
+              evicted = @debouncers.delete(oldest_key) if oldest_key
+            end
+
+            user_on_execute = @on_execute
+            @debouncers[key] = Debouncer.new(
+              wait: @wait,
+              leading: @leading,
+              trailing: @trailing,
+              max_wait: @max_wait,
+              on_execute: lambda { |result|
+                @mutex.synchronize { @debouncers.delete(key) }
+                user_on_execute&.call(result)
+              },
+              on_cancel: @on_cancel,
+              on_flush: @on_flush,
+              on_error: @on_error,
+              &@block
+            )
+          end
+          @debouncers[key]
         end
+        evicted&.cancel
+        debouncer
       end
     end
   end

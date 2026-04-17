@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.7.0] - 2026-04-16
+
+### Added
+- `KeyedDebouncer` now auto-evicts completed keys: after a keyed debouncer's block fires, its entry is automatically removed from the internal hash
+- `max_keys:` keyword param on `KeyedDebouncer.new` (and `Debounce.keyed`); when set and adding a new key would exceed the limit, the oldest key is evicted first (default: `nil` = unlimited)
+
 ## [0.6.0] - 2026-04-15
 
 ### Added
