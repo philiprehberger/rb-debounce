@@ -99,6 +99,18 @@ module Philiprehberger
         end
       end
 
+      # List all keys currently tracked by this debouncer.
+      #
+      # Returns every key with an active internal debouncer entry, regardless
+      # of whether its timer is currently scheduled. Keys are auto-removed
+      # after their block fires; use {#cancel} or {#cancel_all} to clear them
+      # explicitly.
+      #
+      # @return [Array] keys with a currently active debouncer state
+      def keys
+        @mutex.synchronize { @debouncers.keys.dup }
+      end
+
       # Number of active keyed debouncers currently held internally.
       #
       # @return [Integer] count of tracked keys (O(1))

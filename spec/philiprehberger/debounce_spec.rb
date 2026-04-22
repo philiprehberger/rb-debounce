@@ -865,6 +865,44 @@ RSpec.describe Philiprehberger::Debounce::KeyedDebouncer do
     end
   end
 
+  describe '#keys' do
+    it 'returns empty array when no invocations have occurred' do
+      keyed = Philiprehberger::Debounce.keyed(wait: 1.0) { nil }
+      expect(keyed.keys).to eq([])
+    end
+
+    it 'returns the key after the first call' do
+      keyed = Philiprehberger::Debounce.keyed(wait: 1.0) { nil }
+      keyed.call(:a)
+      expect(keyed.keys).to eq([:a])
+    end
+
+    it 'dedupes when the same key is reused' do
+      keyed = Philiprehberger::Debounce.keyed(wait: 1.0) { nil }
+      keyed.call(:a)
+      keyed.call(:a)
+      keyed.call(:a)
+      expect(keyed.keys).to eq([:a])
+    end
+
+    it 'returns each distinct key with a pending invocation' do
+      keyed = Philiprehberger::Debounce.keyed(wait: 1.0) { nil }
+      keyed.call(:a)
+      keyed.call(:b)
+      keyed.call(:c)
+      expect(keyed.keys).to contain_exactly(:a, :b, :c)
+    end
+  end
+
+  describe '#size' do
+    it 'returns the count of tracked keys' do
+      keyed = Philiprehberger::Debounce.keyed(wait: 1.0) { nil }
+      keyed.call(:a)
+      keyed.call(:b)
+      expect(keyed.size).to eq(2)
+    end
+  end
+
   describe 'validation' do
     it 'raises without a block' do
       expect { Philiprehberger::Debounce.keyed(wait: 0.1) }.to raise_error(ArgumentError, /block/)
