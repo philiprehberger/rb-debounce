@@ -269,7 +269,8 @@ end
 | `#flush(key)` | Flush pending execution for a specific key immediately |
 | `#flush_all` | Flush all pending keyed debouncers immediately |
 | `#pending_keys` | List keys with pending executions |
-| `#size` | Number of active keyed debouncers currently held (O(1)) |
+| `#keys` | Array of keys with a pending invocation |
+| `#size` | Number of pending keys |
 
 Completed keys are automatically removed after execution. Use `max_keys:` to cap the number of tracked keys; the oldest key is evicted when the limit is exceeded.
 
