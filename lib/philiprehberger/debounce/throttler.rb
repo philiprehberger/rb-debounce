@@ -153,6 +153,19 @@ module Philiprehberger
         end
       end
 
+      # Cancel any pending invocation and reset metric counters.
+      # @return [void]
+      def reset!
+        @mutex.synchronize do
+          @pending = false
+          @last_args = nil
+          @last_execution_time = nil
+          @call_count = 0
+          @execution_count = 0
+          @condition.signal
+        end
+      end
+
       private
 
       def schedule_trailing

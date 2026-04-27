@@ -56,6 +56,15 @@ module Philiprehberger
         @mutex.synchronize { @queue.dup }
       end
 
+      # Cancel any pending invocation and reset metric counters.
+      # @return [void]
+      def reset!
+        @mutex.synchronize do
+          @queue.clear
+          @generation += 1
+        end
+      end
+
       private
 
       def schedule_flush(gen)

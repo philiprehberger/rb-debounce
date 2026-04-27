@@ -120,6 +120,17 @@ module Philiprehberger
         end
       end
 
+      # Cancel any pending invocation and reset metric counters.
+      # @return [void]
+      def reset!
+        debouncers = @mutex.synchronize do
+          current = @debouncers.values
+          @debouncers.clear
+          current
+        end
+        debouncers.each(&:reset!)
+      end
+
       private
 
       def debouncer_for(key)

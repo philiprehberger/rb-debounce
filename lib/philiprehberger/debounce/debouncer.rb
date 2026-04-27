@@ -200,6 +200,20 @@ module Philiprehberger
         end
       end
 
+      # Cancel any pending invocation and reset metric counters.
+      # @return [void]
+      def reset!
+        @mutex.synchronize do
+          @generation += 1
+          @pending = false
+          @last_args = nil
+          @called_leading = false
+          @first_call_time = nil
+          @call_count = 0
+          @execution_count = 0
+        end
+      end
+
       private
 
       def execute(args)

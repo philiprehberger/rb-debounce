@@ -37,6 +37,12 @@ module Philiprehberger
         self
       end
 
+      # Cancel any pending invocation and reset metric counters.
+      # @return [void]
+      def reset!
+        @mutex.synchronize { @requests.clear }
+      end
+
       private
 
       def cleanup!(key, now)

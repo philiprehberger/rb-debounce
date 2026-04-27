@@ -322,6 +322,28 @@ RSpec.describe Philiprehberger::Debounce::Debouncer do
     end
   end
 
+  describe '#reset!' do
+    it 'cancels pending invocation and zeros metric counters' do
+      count = 0
+      debouncer = Philiprehberger::Debounce.debounce(wait: 0.1) { count += 1 }
+
+      debouncer.call('a')
+      debouncer.call('b')
+      expect(debouncer.pending?).to be true
+
+      debouncer.reset!
+
+      expect(debouncer.pending?).to be false
+      expect(debouncer.pending_args).to be_nil
+      m = debouncer.metrics
+      expect(m[:call_count]).to eq(0)
+      expect(m[:execution_count]).to eq(0)
+
+      sleep 0.15
+      expect(count).to eq(0)
+    end
+  end
+
   describe 'max_wait' do
     it 'forces execution after max_wait even with continuous calls' do
       results = []
@@ -747,6 +769,23 @@ RSpec.describe Philiprehberger::Debounce::Throttler do
       expect(m[:call_count]).to eq(0)
       expect(m[:execution_count]).to eq(0)
       expect(m[:suppressed_count]).to eq(0)
+    end
+  end
+
+  describe '#reset!' do
+    it 'cancels pending invocation and zeros metric counters' do
+      throttler = Philiprehberger::Debounce.throttle(interval: 1.0, leading: false, trailing: true) { nil }
+
+      throttler.call('a')
+      expect(throttler.pending?).to be true
+
+      throttler.reset!
+
+      expect(throttler.pending?).to be false
+      expect(throttler.pending_args).to be_nil
+      m = throttler.metrics
+      expect(m[:call_count]).to eq(0)
+      expect(m[:execution_count]).to eq(0)
     end
   end
 
@@ -1192,5 +1231,59 @@ RSpec.describe Philiprehberger::Debounce::Coalescer, '#pending_args' do
     snapshot = coalescer.pending_args
     snapshot.clear
     expect(coalescer.pending_args).to eq([['a']])
+  end
+end
+
+RSpec.describe Philiprehberger::Debounce::KeyedDebouncer, '#reset!' do
+  it 'cancels pending invocations across all keys' do
+    results = []
+    keyed = Philiprehberger::Debounce.keyed(wait: 0.1) { |v| results << v }
+
+    keyed.call(:a, 'a')
+    keyed.call(:b, 'b')
+    expect(keyed.size).to eq(2)
+
+    keyed.reset!
+
+    expect(keyed.size).to eq(0)
+    expect(keyed.pending_keys).to be_empty
+
+    sleep 0.15
+    expect(results).to be_empty
+  end
+end
+
+RSpec.describe Philiprehberger::Debounce::Coalescer, '#reset!' do
+  it 'clears the queue and prevents pending invocations' do
+    results = nil
+    coalescer = Philiprehberger::Debounce.coalesce(wait: 0.1) { |items| results = items }
+
+    coalescer.call('a')
+    coalescer.call('b')
+    expect(coalescer.pending_count).to eq(2)
+
+    coalescer.reset!
+
+    expect(coalescer.pending_count).to eq(0)
+    expect(coalescer.pending_args).to eq([])
+
+    sleep 0.15
+    expect(results).to be_nil
+  end
+end
+
+RSpec.describe Philiprehberger::Debounce::RateLimiter, '#reset!' do
+  it 'clears all request history across keys' do
+    limiter = Philiprehberger::Debounce.rate_limiter(limit: 1, window: 1.0)
+
+    limiter.call(:a)
+    limiter.call(:b)
+    expect(limiter.call(:a)[:allowed]).to be false
+    expect(limiter.call(:b)[:allowed]).to be false
+
+    limiter.reset!
+
+    expect(limiter.call(:a)[:allowed]).to be true
+    expect(limiter.call(:b)[:allowed]).to be true
   end
 end

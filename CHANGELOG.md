@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.9.0] - 2026-04-26
+
+### Added
+- `reset!` method on `Debouncer`, `Throttler`, `KeyedDebouncer`, `Coalescer`, and `RateLimiter` — cancels pending invocations and zeros metric counters in one call
+
 ## [0.8.0] - 2026-04-22
 
 ### Added

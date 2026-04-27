@@ -190,6 +190,22 @@ coalescer.cancel         # discard queued args
 coalescer.pending_count  # number of queued calls
 ```
 
+### Resetting State
+
+```ruby
+debouncer = Philiprehberger::Debounce.debounce(wait: 0.5) { |q| search(q) }
+debouncer.call('ruby')
+debouncer.reset! # cancels pending execution and zeros metric counters
+
+throttler = Philiprehberger::Debounce.throttle(interval: 1.0) { |e| log(e) }
+throttler.call('click')
+throttler.reset! # clears pending state and metrics
+
+keyed = Philiprehberger::Debounce.keyed(wait: 0.5) { |q| search(q) }
+keyed.call(:user_1, 'ruby')
+keyed.reset! # cancels all pending keys and resets internal state
+```
+
 ### Last Result
 
 ```ruby
@@ -244,6 +260,7 @@ end
 | `#pending_args` | Returns the pending arguments, or nil |
 | `#metrics` | Returns `{ call_count:, execution_count:, suppressed_count: }` |
 | `#reset_metrics` | Resets all metric counters to zero |
+| `#reset!` | Cancels pending invocation and zeros metric counters |
 | `#last_result` | Returns the result of the last block execution |
 
 ### `Throttler`
@@ -257,6 +274,7 @@ end
 | `#pending_args` | Returns the pending arguments, or nil |
 | `#metrics` | Returns `{ call_count:, execution_count:, suppressed_count: }` |
 | `#reset_metrics` | Resets all metric counters to zero |
+| `#reset!` | Cancels pending invocation and zeros metric counters |
 | `#last_result` | Returns the result of the last block execution |
 
 ### `KeyedDebouncer`
@@ -271,6 +289,7 @@ end
 | `#pending_keys` | List keys with pending executions |
 | `#keys` | Array of keys with a pending invocation |
 | `#size` | Number of pending keys |
+| `#reset!` | Cancels all pending keys and resets internal state |
 
 Completed keys are automatically removed after execution. Use `max_keys:` to cap the number of tracked keys; the oldest key is evicted when the limit is exceeded.
 
@@ -280,6 +299,7 @@ Completed keys are automatically removed after execution. Use `max_keys:` to cap
 |--------|-------------|
 | `#call(key = :default)` | Check rate limit, returns `{ allowed:, remaining:, retry_after: }` |
 | `#reset(key = :default)` | Clear request history for a key |
+| `#reset!` | Clear request history across all keys |
 
 ### `Coalescer`
 
@@ -290,6 +310,7 @@ Completed keys are automatically removed after execution. Use `max_keys:` to cap
 | `#cancel` | Discard all queued arguments |
 | `#pending_count` | Number of queued calls |
 | `#pending_args` | Snapshot of queued argument arrays |
+| `#reset!` | Discard queued arguments and reset internal state |
 
 ### `Mixin`
 
