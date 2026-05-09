@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.10.0] - 2026-05-09
+
+### Added
+- `Philiprehberger::Debounce::Batcher` and `Debounce.batcher(size:, max_wait:, on_error:, &block)` — size-and-time-triggered batcher. Buffers items via `<<`/`push` and flushes the block with the buffered array when either `size` items accumulate or `max_wait` seconds elapse since the first buffered item. Supports `flush`, `cancel`, `pending`, and `pending_items`. Thread-safe via `Mutex`.
+
 ## [0.9.0] - 2026-04-26
 
 ### Added

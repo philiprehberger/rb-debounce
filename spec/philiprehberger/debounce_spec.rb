@@ -42,6 +42,96 @@ RSpec.describe Philiprehberger::Debounce do
     end
   end
 
+  describe '.batcher' do
+    it 'returns a Batcher' do
+      b = described_class.batcher(size: 3, max_wait: 0.1) { nil }
+      expect(b).to be_a(Philiprehberger::Debounce::Batcher)
+    end
+
+    it 'flushes when the buffer reaches the size threshold' do
+      flushed = []
+      batcher = described_class.batcher(size: 3, max_wait: 1.0) { |items| flushed << items }
+      batcher << 'a'
+      batcher << 'b'
+      expect(flushed).to be_empty
+      batcher << 'c'
+      expect(flushed).to eq([%w[a b c]])
+      expect(batcher.pending).to eq(0)
+    end
+
+    it 'flushes after max_wait when fewer than size items have arrived' do
+      flushed = []
+      batcher = described_class.batcher(size: 100, max_wait: 0.05) { |items| flushed << items }
+      batcher << 'a'
+      batcher << 'b'
+      sleep 0.15
+      expect(flushed).to eq([%w[a b]])
+    end
+
+    it 'restarts the max_wait timer for the next batch after a size flush' do
+      flushed = []
+      batcher = described_class.batcher(size: 2, max_wait: 0.05) { |items| flushed << items }
+      batcher << 1
+      batcher << 2
+      batcher << 3
+      sleep 0.15
+      expect(flushed).to eq([[1, 2], [3]])
+    end
+
+    it 'invokes the block on manual flush' do
+      flushed = []
+      batcher = described_class.batcher(size: 100, max_wait: 10.0) { |items| flushed << items }
+      batcher << 'x'
+      batcher.flush
+      expect(flushed).to eq([['x']])
+    end
+
+    it 'does nothing on flush when there are no pending items' do
+      flushed = []
+      batcher = described_class.batcher(size: 100, max_wait: 10.0) { |items| flushed << items }
+      batcher.flush
+      expect(flushed).to be_empty
+    end
+
+    it 'discards pending items on cancel' do
+      flushed = []
+      batcher = described_class.batcher(size: 100, max_wait: 0.05) { |items| flushed << items }
+      batcher << 'x'
+      batcher.cancel
+      sleep 0.15
+      expect(flushed).to be_empty
+      expect(batcher.pending).to eq(0)
+    end
+
+    it 'reports pending items via #pending and #pending_items' do
+      batcher = described_class.batcher(size: 100, max_wait: 10.0) { nil }
+      batcher << :a
+      batcher << :b
+      expect(batcher.pending).to eq(2)
+      expect(batcher.pending_items).to eq(%i[a b])
+    end
+
+    it 'reports block errors via on_error' do
+      errors = []
+      batcher = described_class.batcher(size: 1, max_wait: 0.05, on_error: ->(e) { errors << e }) { raise 'boom' }
+      batcher << 'x'
+      expect(errors.map(&:message)).to eq(['boom'])
+    end
+
+    it 'raises when size is not a positive Integer' do
+      expect { described_class.batcher(size: 0, max_wait: 0.1) { nil } }.to raise_error(ArgumentError)
+      expect { described_class.batcher(size: 1.5, max_wait: 0.1) { nil } }.to raise_error(ArgumentError)
+    end
+
+    it 'raises when max_wait is not positive' do
+      expect { described_class.batcher(size: 5, max_wait: 0) { nil } }.to raise_error(ArgumentError)
+    end
+
+    it 'raises when no block is given' do
+      expect { described_class.batcher(size: 5, max_wait: 0.1) }.to raise_error(ArgumentError)
+    end
+  end
+
   describe 'on_error callback' do
     it 'reports debouncer block errors via on_error' do
       errors = []

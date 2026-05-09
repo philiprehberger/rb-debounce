@@ -190,6 +190,27 @@ coalescer.cancel         # discard queued args
 coalescer.pending_count  # number of queued calls
 ```
 
+### Size-and-Time Batching
+
+```ruby
+# Flush when 100 items accumulate OR 5s passes since the first item
+batcher = Philiprehberger::Debounce.batcher(size: 100, max_wait: 5.0) do |items|
+  bulk_insert(items)
+end
+
+batcher << event_1
+batcher << event_2
+# ...
+
+batcher.flush          # force-flush pending items
+batcher.cancel         # discard pending items without flushing
+batcher.pending        # number of buffered items
+batcher.pending_items  # snapshot of buffered items
+```
+
+Useful for log shipping, write coalescing, and any "flush every N items or
+every T seconds, whichever comes first" pattern. Thread-safe.
+
 ### Resetting State
 
 ```ruby
@@ -248,6 +269,7 @@ end
 | `.keyed(wait:, leading: false, trailing: true, max_wait: nil, max_keys: nil, on_execute: nil, on_cancel: nil, on_flush: nil, on_error: nil, &block)` | Create a keyed debouncer for per-key debouncing |
 | `.rate_limiter(limit:, window:)` | Create a sliding window rate limiter |
 | `.coalesce(wait:, on_error: nil, &block)` | Create a coalescer that batches arguments |
+| `.batcher(size:, max_wait:, on_error: nil, &block)` | Create a size-and-time-triggered batcher |
 
 ### `Debouncer`
 
@@ -311,6 +333,16 @@ Completed keys are automatically removed after execution. Use `max_keys:` to cap
 | `#pending_count` | Number of queued calls |
 | `#pending_args` | Snapshot of queued argument arrays |
 | `#reset!` | Discard queued arguments and reset internal state |
+
+### `Batcher`
+
+| Method | Description |
+|--------|-------------|
+| `#<<(item)` / `#push(item)` | Buffer an item; flushes when size or max_wait triggers |
+| `#flush` | Force-flush pending items |
+| `#cancel` | Discard pending items without invoking the block |
+| `#pending` | Number of buffered items |
+| `#pending_items` | Snapshot of buffered items |
 
 ### `Mixin`
 

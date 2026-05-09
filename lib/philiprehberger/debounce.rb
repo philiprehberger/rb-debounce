@@ -6,6 +6,7 @@ require_relative 'debounce/throttler'
 require_relative 'debounce/keyed_debouncer'
 require_relative 'debounce/rate_limiter'
 require_relative 'debounce/coalescer'
+require_relative 'debounce/batcher'
 require_relative 'debounce/mixin'
 
 module Philiprehberger
@@ -86,6 +87,21 @@ module Philiprehberger
     # @return [Coalescer]
     def self.coalesce(wait:, on_error: nil, &block)
       Coalescer.new(wait: wait, on_error: on_error, &block)
+    end
+
+    # Create a new size-and-time-triggered batcher.
+    #
+    # Items pushed via `<<` or `push` are buffered until either `size` items
+    # accumulate or `max_wait` seconds elapse since the first buffered item,
+    # at which point the block is invoked with the buffered array.
+    #
+    # @param size [Integer] flush after this many items accumulate
+    # @param max_wait [Numeric] flush after this many seconds since the first item
+    # @param on_error [Proc, nil] callback when the block raises
+    # @yield [Array] the buffered items
+    # @return [Batcher]
+    def self.batcher(size:, max_wait:, on_error: nil, &block)
+      Batcher.new(size: size, max_wait: max_wait, on_error: on_error, &block)
     end
   end
 end
